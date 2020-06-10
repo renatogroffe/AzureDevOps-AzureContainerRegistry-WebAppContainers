@@ -1,0 +1,47 @@
+# Build e push de uma imagem Docker no Azure Container Registry
+# Deployment no Azure Web App for Containers 
+# Projeto utilizado: https://github.com/renatogroffe/ASPNET5-Preview4_REST-API_Docker
+
+trigger:
+    - master
+    
+    resources:
+    - repo: self
+    
+    variables:
+      # Container registry service connection established during pipeline creation
+      dockerRegistryServiceConnection: 'acr-connection'
+      imageRepository: 'apicontagem'
+      containerRegistry: 'groffeazuredevops.azurecr.io'
+      dockerfilePath: '$(Build.SourcesDirectory)/APIContagem/Dockerfile'
+      tag: '$(Build.BuildId)'
+      
+      # Agent VM image name
+      vmImageName: 'ubuntu-latest'
+    
+    stages:
+    - stage: Stage_Build_Deployment_Docker
+      displayName: Stage de Build, Push e Deployment com Docker
+      jobs:  
+      - job: Job_Build_Deployment
+        displayName: Job de Build, Push e Deployment com Docker
+        pool:
+          vmImage: $(vmImageName)
+        steps:
+        - task: Docker@2
+          displayName: Build e Push da imagem para um Container Registry
+          inputs:
+            command: buildAndPush
+            repository: $(imageRepository)
+            dockerfile: $(dockerfilePath)
+            containerRegistry: $(dockerRegistryServiceConnection)
+            tags: |
+              $(tag)
+              latest
+
+        - task: AzureWebAppContainer@1
+          displayName: Deployment no Azure Web App for Containers
+          inputs:
+            azureSubscription: 'azure-subscription'
+            appName: 'groffedocker2'
+            containers: '$(containerRegistry)/$(imageRepository):$(tag)'
